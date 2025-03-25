@@ -163,3 +163,40 @@ address p {
 .info-box * {
     background-color: #222;
 }
+
+.obj {
+    margin: 10px;
+}
+
+.dom-tree ul {
+    list-style-type: none;
+    padding-left: 20px;
+}
+
+.dom-tree li {
+    margin-bottom: 10px;
+}
+
+.dom-tree .node {
+    font-weight: bold;
+    color: aqua;
+}
+
+.dom-tree .attribute {
+    color: lightgreen;
+}
+
+
+.back-to-home {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 20px 0;
+    font-size: 16px;
+    font-weight: bold;
+    text-decoration: none;
+    background-color: #444;
+    color: white;
+    border-radius: 5px; 
+    text-align: center;
+}
+
