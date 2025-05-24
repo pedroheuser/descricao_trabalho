@@ -28,10 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (codeEditor && lineNumbers && highlightLayer) {
         highlightLayer.style.background = "transparent";
         
-        
         updateLineNumbers();
         updateHighlighting();
-        
         saveToHistory();
 
         codeEditor.addEventListener('input', function() {
@@ -57,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const end = this.selectionEnd;
                 
                 this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
-                
                 this.selectionStart = this.selectionEnd = start + 4;
                 
                 updateHighlighting();
@@ -65,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 markEditorDirty();
             }
             
-            if (e.ctrlKey) {
+            if (e.ctrlKey || e.metaKey) {
                 switch (e.key) {
                     case 'z':
                         e.preventDefault();
@@ -115,13 +112,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-   
     function isAuthenticated() {
-        return false;
+        return localStorage.getItem('user_token') !== null;
     }
 
     function showLoginModal() {
-        // Replace with your login modal display logic
         const loginModal = document.getElementById('login-modal');
         if (loginModal) {
             loginModal.style.display = 'block';
@@ -144,22 +139,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateCodeInDatabase(codeId, title, code) {
-        // substituir com a lógica de atualização do banco de dados
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                console.log(`Code with ID ${codeId} updated in the database.`);
-                resolve();
+                try {
+                    const savedCodes = JSON.parse(localStorage.getItem('saved_codes') || '{}');
+                    savedCodes[codeId] = {
+                        title: title,
+                        code: code,
+                        lastModified: new Date().toISOString()
+                    };
+                    localStorage.setItem('saved_codes', JSON.stringify(savedCodes));
+                    console.log(`Code with ID ${codeId} updated in the database.`);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
             }, 500);
         });
     }
 
     function saveCodeToDatabase(title, code) {
-        // substituir com a lógica de salvamento do banco de dados
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                const newCodeId = Math.random().toString(36).substring(2, 15);
-                console.log(`Code saved to the database with ID ${newCodeId}.`);
-                resolve(newCodeId);
+                try {
+                    const newCodeId = Math.random().toString(36).substring(2, 15);
+                    const savedCodes = JSON.parse(localStorage.getItem('saved_codes') || '{}');
+                    savedCodes[newCodeId] = {
+                        title: title,
+                        code: code,
+                        created: new Date().toISOString()
+                    };
+                    localStorage.setItem('saved_codes', JSON.stringify(savedCodes));
+                    console.log(`Code saved to the database with ID ${newCodeId}.`);
+                    resolve(newCodeId);
+                } catch (error) {
+                    reject(error);
+                }
             }, 500);
         });
     }
@@ -167,9 +182,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateShareLink(codeId, permission) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                const shareLink = `https://example.com/share/${codeId}?permission=${permission}`;
-                console.log(`Share link generated: ${shareLink}`);
-                resolve(shareLink);
+                try {
+                    const shareLink = `${window.location.origin}${window.location.pathname}?share=${codeId}&permission=${permission}`;
+                    console.log(`Share link generated: ${shareLink}`);
+                    resolve(shareLink);
+                } catch (error) {
+                    reject(error);
+                }
             }, 500);
         });
     }
@@ -177,13 +196,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function getSharedCode(shareId) {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                const sharedCodeData = {
-                    code: '// Shared code example',
-                    title: 'Shared Code',
-                    permission: 'read'
-                };
-                console.log(`Shared code loaded for ID ${shareId}`);
-                resolve(sharedCodeData);
+                try {
+                    const savedCodes = JSON.parse(localStorage.getItem('saved_codes') || '{}');
+                    const sharedCode = savedCodes[shareId];
+                    
+                    if (sharedCode) {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const permission = urlParams.get('permission') || 'read';
+                        
+                        resolve({
+                            code: sharedCode.code,
+                            title: sharedCode.title,
+                            permission: permission
+                        });
+                    } else {
+                        reject(new Error('Shared code not found'));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
             }, 500);
         });
     }
@@ -192,9 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!highlightLayer || !codeEditor || !hljs) return;
         
         highlightLayer.textContent = codeEditor.value;
-        
         hljs.highlightElement(highlightLayer);
-        
     }
 
     function updateLineNumbers() {
@@ -222,8 +251,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log = function() {
                 const args = Array.from(arguments);
                 const message = args.map(arg => {
-                    if (typeof arg === 'object') {
-                        return JSON.stringify(arg, null, 2);
+                    if (typeof arg === 'object' && arg !== null) {
+                        try {
+                            return JSON.stringify(arg, null, 2);
+                        } catch (e) {
+                            return String(arg);
+                        }
                     }
                     return String(arg);
                 }).join(' ');
@@ -254,20 +287,33 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             if (!codeEditor) return;
+            
             const code = codeEditor.value;
-            const result = eval(code);
+            
+            const result = (function() {
+                try {
+                    return eval(code);
+                } catch (error) {
+                    throw error;
+                }
+            })();
             
             if (result !== undefined) {
                 let resultStr;
-                if (typeof result === 'object') {
-                    resultStr = JSON.stringify(result, null, 2);
+                if (typeof result === 'object' && result !== null) {
+                    try {
+                        resultStr = JSON.stringify(result, null, 2);
+                    } catch (e) {
+                        resultStr = String(result);
+                    }
                 } else {
                     resultStr = String(result);
                 }
                 appendToOutput('=> ' + resultStr, 'result');
             }
         } catch (error) {
-            appendToOutput(error.toString(), 'error');
+            appendToOutput('Error: ' + error.message, 'error');
+            console.error('Code execution error:', error);
         } finally {
             console.log = originalLog;
             console.error = originalError;
@@ -349,11 +395,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!codeEditor) return;
         
         codeEditor.select();
-        document.execCommand('copy');
-        
+        codeEditor.setSelectionRange(0, 99999); 
+        try {
+            document.execCommand('copy');
+            showNotification('Code copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy code:', err);
+            showNotification('Failed to copy code', 'error');
+        }
+    }
+
+    function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
         notification.className = 'copy-notification';
-        notification.textContent = 'Code copied to clipboard!';
+        notification.textContent = message;
+        notification.style.backgroundColor = type === 'error' ? 'var(--error-color)' : 'rgba(0, 0, 0, 0.8)';
         
         document.body.appendChild(notification);
         
@@ -361,7 +417,9 @@ document.addEventListener('DOMContentLoaded', function() {
             notification.style.opacity = '0';
             notification.style.transition = 'opacity 0.5s';
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 500);
         }, 2000);
     }
@@ -370,19 +428,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const editorContainer = document.querySelector('.editor-container');
         
         if (!document.fullscreenElement) {
-            if (editorContainer) {
+            if (editorContainer && editorContainer.requestFullscreen) {
                 editorContainer.requestFullscreen().catch(err => {
                     console.error(`Error attempting to enable fullscreen: ${err.message}`);
                 });
             }
         } else {
-            document.exitFullscreen();
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
         }
     }
 
     function selectAll() {
         if (!codeEditor) return;
         codeEditor.select();
+        codeEditor.setSelectionRange(0, codeEditor.value.length);
     }
 
     function markEditorDirty() {
@@ -422,10 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         saveStatus.textContent = 'Saved';
                         saveStatus.style.color = '#888';
                     }
+                    showNotification('Code saved successfully!');
                 })
                 .catch(error => {
                     console.error('Error saving code:', error);
-                    alert('Failed to save code. Please try again.');
+                    showNotification('Failed to save code. Please try again.', 'error');
                 });
         } else {
             saveCodeToDatabase(title, code)
@@ -437,10 +499,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         saveStatus.textContent = 'Saved';
                         saveStatus.style.color = '#888';
                     }
+                    showNotification('Code saved successfully!');
                 })
                 .catch(error => {
                     console.error('Error saving code:', error);
-                    alert('Failed to save code. Please try again.');
+                    showNotification('Failed to save code. Please try again.', 'error');
                 });
         }
     }
@@ -453,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!currentCodeId) {
             saveCode();
-            setTimeout(showShareModal, 500); 
+            setTimeout(showShareModal, 1000);
             return;
         }
         
@@ -469,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         shareLink.value = '';
         shareSuccess.textContent = '';
-        
         shareModal.style.display = 'block';
         
         generateLinkBtn.onclick = function() {
@@ -482,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(link => {
                     shareLink.value = link;
                     shareSuccess.textContent = 'Share link generated successfully!';
+                    shareSuccess.style.color = 'var(--success-color)';
                 })
                 .catch(error => {
                     console.error('Error generating share link:', error);
@@ -491,9 +554,18 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         copyLinkBtn.onclick = function() {
-            shareLink.select();
-            document.execCommand('copy');
-            shareSuccess.textContent = 'Link copied to clipboard!';
+            if (shareLink.value) {
+                shareLink.select();
+                shareLink.setSelectionRange(0, 99999);
+                try {
+                    document.execCommand('copy');
+                    shareSuccess.textContent = 'Link copied to clipboard!';
+                    shareSuccess.style.color = 'var(--success-color)';
+                } catch (err) {
+                    shareSuccess.textContent = 'Failed to copy link';
+                    shareSuccess.style.color = 'var(--error-color)';
+                }
+            }
         };
         
         const closeBtn = shareModal.querySelector('.close');
@@ -532,15 +604,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             saveBtn.disabled = true;
                             saveBtn.style.opacity = '0.5';
                         }
+                        showNotification('Code loaded in read-only mode');
                     } else {
                         currentCodeId = null;
                         lastSavedContent = '';
                         markEditorDirty();
+                        showNotification('Shared code loaded successfully');
                     }
                 })
                 .catch(error => {
                     console.error('Error loading shared code:', error);
-                    alert('Failed to load shared code. The link may be invalid or expired.');
+                    showNotification('Failed to load shared code. The link may be invalid or expired.', 'error');
                 });
         }
     }
@@ -555,6 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
             lastY = e.clientY;
             document.addEventListener('mousemove', handleResize);
             document.addEventListener('mouseup', stopResize);
+            e.preventDefault();
         });
     }
     
@@ -569,30 +644,37 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (window.innerWidth > 768) {
             const deltaX = e.clientX - lastX;
-            const codeWidth = codeContainer.getBoundingClientRect().width;
-            const outputWidth = outputContainer.getBoundingClientRect().width;
-            const totalWidth = editorWorkspace.getBoundingClientRect().width;
+            const workspaceRect = editorWorkspace.getBoundingClientRect();
+            const codeRect = codeContainer.getBoundingClientRect();
             
-            const newCodeWidth = codeWidth + deltaX;
-            const newOutputWidth = totalWidth - newCodeWidth - (resizer ? resizer.getBoundingClientRect().width : 0);
+            const newCodeWidth = codeRect.width + deltaX;
+            const minWidth = 200;
+            const maxWidth = workspaceRect.width - minWidth - 10; // 10px para o resizer
             
-            if (newCodeWidth > 200 && newOutputWidth > 200) {
-                codeContainer.style.flex = `0 0 ${newCodeWidth}px`;
-                outputContainer.style.width = `${newOutputWidth}px`;
+            if (newCodeWidth >= minWidth && newCodeWidth <= maxWidth) {
+                const newCodePercentage = (newCodeWidth / workspaceRect.width) * 100;
+                const newOutputPercentage = 100 - newCodePercentage - 1; // 1% para o resizer
+                
+                codeContainer.style.flex = `0 0 ${newCodePercentage}%`;
+                outputContainer.style.width = `${newOutputPercentage}%`;
+                
                 lastX = e.clientX;
             }
         } else {
             const deltaY = e.clientY - lastY;
-            const codeHeight = codeContainer.getBoundingClientRect().height;
-            const outputHeight = outputContainer.getBoundingClientRect().height;
-            const totalHeight = editorWorkspace.getBoundingClientRect().height;
+            const workspaceRect = editorWorkspace.getBoundingClientRect();
+            const codeRect = codeContainer.getBoundingClientRect();
             
-            const newCodeHeight = codeHeight + deltaY;
-            const newOutputHeight = totalHeight - newCodeHeight - (resizer ? resizer.getBoundingClientRect().height : 0);
+            const newCodeHeight = codeRect.height + deltaY;
+            const minHeight = 150;
+            const maxHeight = workspaceRect.height - minHeight - 10;
             
-            if (newCodeHeight > 150 && newOutputHeight > 150) {
+            if (newCodeHeight >= minHeight && newCodeHeight <= maxHeight) {
+                const newOutputHeight = workspaceRect.height - newCodeHeight - 10;
+                
                 codeContainer.style.height = `${newCodeHeight}px`;
                 outputContainer.style.height = `${newOutputHeight}px`;
+                
                 lastY = e.clientY;
             }
         }
@@ -604,8 +686,39 @@ document.addEventListener('DOMContentLoaded', function() {
         document.removeEventListener('mouseup', stopResize);
     }
 
-    loadSharedCode();
-    
+    function setupModals() {
+        const modals = document.querySelectorAll('.modal');
+        
+        modals.forEach(modal => {
+            const closeBtn = modal.querySelector('.close');
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    modal.style.display = 'none';
+                };
+            }
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    function init() {
+        loadSharedCode();
+        setupModals();
+        
+        if (!localStorage.getItem('user_token')) {
+            localStorage.setItem('user_token', 'demo_token');
+        }
+        
+        // Focar no editor
+        if (codeEditor) {
+            codeEditor.focus();
+        }
+    }
+
     window.editorFunctions = {
         loadCode: function(id, title, code) {
             currentCodeId = id;
@@ -628,15 +741,34 @@ document.addEventListener('DOMContentLoaded', function() {
         newCode: function() {
             currentCodeId = null;
             if (codeTitle) codeTitle.value = 'Untitled.js';
-            if (codeEditor) codeEditor.value = '// Write your JavaScript code here\nconsole.log("Hello, world!");';
+            if (codeEditor) {
+                codeEditor.value = '// Write your JavaScript code here\nconsole.log("Hello, world!");';
+            }
             lastSavedContent = '';
             updateHighlighting();
             updateLineNumbers();
             markEditorDirty();
             
-            editorHistory = [codeEditor.value];
-            historyIndex = 0;
-            updateUndoRedoButtons();
+            if (codeEditor) {
+                editorHistory = [codeEditor.value];
+                historyIndex = 0;
+                updateUndoRedoButtons();
+            }
+        },
+        
+        getCode: function() {
+            return codeEditor ? codeEditor.value : '';
+        },
+        
+        setCode: function(code) {
+            if (codeEditor) {
+                codeEditor.value = code;
+                updateHighlighting();
+                updateLineNumbers();
+                markEditorDirty();
+            }
         }
     };
+
+    init();
 });
