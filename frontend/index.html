@@ -206,7 +206,7 @@ console.log("Hello, world!");</textarea>
             </div>
         </div>
     </div>
-    
+
     <div id="login-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -283,28 +283,49 @@ console.log("Hello, world!");</textarea>
 
     <div id="share-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Share Code</h2>
-            <div class="form-group">
-                <label for="share-link">Share Link</label>
-                <div class="share-link-container">
-                    <input type="text" id="share-link" readonly>
-                    <button id="copy-link-btn" class="btn">Copy</button>
+            <div class="modal-header">
+                <h2>Compartilhar Código</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="share-success" class="success-message" style="display: none;">
+                    Link de compartilhamento gerado com sucesso!
+                </div>
+                
+                <div class="form-group">
+                    <label for="share-link">Link de Compartilhamento:</label>
+                    <div class="share-link-container">
+                        <input 
+                            type="text" 
+                            id="share-link" 
+                            class="form-control" 
+                            readonly 
+                            placeholder="Link será gerado aqui..."
+                        >
+                        <button 
+                            type="button" 
+                            id="copy-link-btn" 
+                            class="btn btn-primary copy-btn"
+                            title="Copiar link"
+                        >
+                            📋 Copiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="share-info">
+                    <p><strong>ℹ️ Informações importantes:</strong></p>
+                    <ul>
+                        <li>Este link permite visualizar seu código</li>
+                        <li>O link expira em 30 dias</li>
+                        <li>Outras pessoas não poderão editar o código</li>
+                        <li>Você pode revogar o acesso a qualquer momento</li>
+                    </ul>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Permissions</label>
-                <div class="permission-options">
-                    <label>
-                        <input type="radio" name="permission" value="read" checked> Read-only
-                    </label>
-                    <label>
-                        <input type="radio" name="permission" value="edit"> Allow editing
-                    </label>
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary close-modal">Fechar</button>
             </div>
-            <button id="generate-link-btn" class="btn btn-primary">Generate Link</button>
-            <div class="form-success" id="share-success"></div>
         </div>
     </div>
 

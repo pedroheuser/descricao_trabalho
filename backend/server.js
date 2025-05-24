@@ -94,6 +94,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
+app.get('/shared/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/shared.html'));
+});
+
+
 app.use('*', (req, res) => {
     res.status(404).json({ 
         error: 'Rota não encontrada' 

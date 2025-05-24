@@ -427,14 +427,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // FUNÇÕES DE COMPARTILHAMENTO
     // ========================================
     async function showShareModal() {
+        console.log('🔗 Iniciando compartilhamento...');
+        
         if (!currentUser) {
+            console.log('❌ Usuário não autenticado');
             showLoginModal();
             return;
         }
+        
         if (!currentCodeId) {
+            console.log('❌ Nenhum código para compartilhar');
             showNotification('Salve o código primeiro para compartilhar', 'error');
             return;
         }
+        
+        console.log('📤 Gerando link para código ID:', currentCodeId);
+        
         try {
             const response = await fetch(`${API_BASE}/codes/${currentCodeId}/share`, {
                 method: 'POST',
@@ -447,18 +455,112 @@ document.addEventListener('DOMContentLoaded', function() {
                     expiresIn: 30
                 })
             });
+            
+            console.log('📡 Resposta do servidor:', response.status);
             const data = await response.json();
+            console.log('📄 Dados recebidos:', data);
+            
+            if (data.success) {
+                // Encontrar elementos do modal
+                const shareModal = document.getElementById('share-modal');
+                const shareLink = document.getElementById('share-link');
+                const shareSuccess = document.getElementById('share-success');
+                
+                console.log('🔍 Elementos encontrados:', {
+                    shareModal: !!shareModal,
+                    shareLink: !!shareLink,
+                    shareSuccess: !!shareSuccess
+                });
+                
+                if (shareModal && shareLink) {
+                    shareLink.value = data.data.shareUrl;
+                    
+                    if (shareSuccess) {
+                        shareSuccess.textContent = 'Link de compartilhamento gerado com sucesso!';
+                        shareSuccess.style.color = '#27ae60';
+                        shareSuccess.style.display = 'block';
+                    }
+                    
+                    shareModal.style.display = 'block';
+                    
+                    // Focar no campo do link para facilitar a seleção
+                    setTimeout(() => {
+                        shareLink.select();
+                    }, 100);
+                    
+                    console.log('✅ Modal de compartilhamento aberto');
+                    showNotification('Link de compartilhamento gerado!');
+                } else {
+                    console.error('❌ Elementos do modal não encontrados');
+                    // Fallback: copiar diretamente para área de transferência
+                    try {
+                        await navigator.clipboard.writeText(data.data.shareUrl);
+                        showNotification('Link copiado para área de transferência!');
+                    } catch (clipboardError) {
+                        console.error('Erro ao copiar:', clipboardError);
+                        // Mostrar o link em um prompt como último recurso
+                        prompt('Link de compartilhamento (Ctrl+C para copiar):', data.data.shareUrl);
+                    }
+                }
+            } else {
+                console.error('❌ Erro na resposta:', data.message);
+                showNotification('Erro ao gerar link: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('💥 Erro na requisição:', error);
+            showNotification('Erro ao compartilhar código', 'error');
+        }
+    }
+
+    async function shareCodeFromList(codeId) {
+        console.log('🔗 Compartilhando código da lista:', codeId);
+        
+        try {
+            const response = await fetch(`${API_BASE}/codes/${codeId}/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    allowEditing: false,
+                    expiresIn: 30
+                })
+            });
+
+            const data = await response.json();
+            console.log('📡 Resposta do compartilhamento:', data);
+
             if (data.success) {
                 const shareModal = document.getElementById('share-modal');
                 const shareLink = document.getElementById('share-link');
                 const shareSuccess = document.getElementById('share-success');
-                if (shareModal && shareLink && shareSuccess) {
+                
+                if (shareModal && shareLink) {
                     shareLink.value = data.data.shareUrl;
-                    shareSuccess.textContent = 'Link de compartilhamento gerado com sucesso!';
-                    shareSuccess.style.color = 'var(--success-color)';
+                    
+                    if (shareSuccess) {
+                        shareSuccess.textContent = 'Link de compartilhamento gerado com sucesso!';
+                        shareSuccess.style.color = '#27ae60';
+                        shareSuccess.style.display = 'block';
+                    }
+                    
                     shareModal.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        shareLink.select();
+                    }, 100);
+                    
+                    showNotification('Link de compartilhamento gerado!');
+                } else {
+                    // Fallback
+                    try {
+                        await navigator.clipboard.writeText(data.data.shareUrl);
+                        showNotification('Link copiado para área de transferência!');
+                    } catch (clipboardError) {
+                        prompt('Link de compartilhamento (Ctrl+C para copiar):', data.data.shareUrl);
+                    }
                 }
-                showNotification('Link de compartilhamento gerado!');
             } else {
                 showNotification('Erro ao gerar link: ' + data.message, 'error');
             }
@@ -466,7 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erro ao compartilhar código:', error);
             showNotification('Erro ao compartilhar código', 'error');
         }
-    }
+    }	
 
     // ========================================
     // FUNÇÕES DO PERFIL E GERENCIAMENTO
@@ -996,21 +1098,76 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupShareModal() {
         const copyLinkBtn = document.getElementById('copy-link-btn');
+        const shareModal = document.getElementById('share-modal');
+        const closeModalBtn = shareModal?.querySelector('.close-modal');
+        const closeBtn = shareModal?.querySelector('.close');
+        
+        console.log('🔧 Configurando modal de compartilhamento...', {
+            copyLinkBtn: !!copyLinkBtn,
+            shareModal: !!shareModal,
+            closeModalBtn: !!closeModalBtn,
+            closeBtn: !!closeBtn
+        });
         
         if (copyLinkBtn) {
-            copyLinkBtn.addEventListener('click', () => {
+            copyLinkBtn.addEventListener('click', async () => {
                 const shareLink = document.getElementById('share-link');
-                if (shareLink) {
-                    shareLink.select();
-                    shareLink.setSelectionRange(0, 99999);
-                    
+                if (shareLink && shareLink.value) {
                     try {
-                        document.execCommand('copy');
+                        // Tentar usar a API moderna de clipboard
+                        if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(shareLink.value);
+                        } else {
+                            // Fallback para método antigo
+                            shareLink.select();
+                            shareLink.setSelectionRange(0, 99999);
+                            document.execCommand('copy');
+                        }
+                        
+                        // Feedback visual
+                        const originalText = copyLinkBtn.textContent;
+                        copyLinkBtn.textContent = '✅ Copiado!';
+                        copyLinkBtn.classList.add('copied');
+                        
+                        setTimeout(() => {
+                            copyLinkBtn.textContent = originalText;
+                            copyLinkBtn.classList.remove('copied');
+                        }, 2000);
+                        
                         showNotification('Link copiado para a área de transferência!');
+                        console.log('✅ Link copiado com sucesso');
                     } catch (err) {
-                        console.error('Falha ao copiar link:', err);
-                        showNotification('Falha ao copiar link', 'error');
+                        console.error('❌ Falha ao copiar link:', err);
+                        showNotification('Falha ao copiar link. Tente selecionar e copiar manualmente.', 'error');
+                        
+                        // Como último recurso, selecionar o texto
+                        shareLink.select();
+                        shareLink.setSelectionRange(0, 99999);
                     }
+                } else {
+                    showNotification('Nenhum link para copiar', 'error');
+                }
+            });
+        }
+        
+        // Fechar modal com botão de fechar
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', () => {
+                shareModal.style.display = 'none';
+            });
+        }
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                shareModal.style.display = 'none';
+            });
+        }
+        
+        // Fechar modal clicando fora
+        if (shareModal) {
+            window.addEventListener('click', (event) => {
+                if (event.target === shareModal) {
+                    shareModal.style.display = 'none';
                 }
             });
         }
