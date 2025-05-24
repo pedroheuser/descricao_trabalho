@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const path = require('path');
+const codeRoutes = require('./routes/codes');
 
 const User = require('./models/User');
 const Code = require('./models/Code');
@@ -82,6 +83,12 @@ app.use('/api/auth', authRoutes);
 app.get('/test-auth', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-auth.html'));
 });
+
+app.get('/test-codes', (req, res) => {
+    res.sendFile(path.join(__dirname, 'test-codes.html'));
+});
+
+app.use('/api/codes', codeRoutes);
 
 app.use('*', (req, res) => {
     res.status(404).json({ 

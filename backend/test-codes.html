@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Sistema de Códigos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 120px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .token-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        .codes-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .code-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        .code-title {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .code-stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste do Sistema de Códigos</h1>
+    
+    <div class="container">
+        <h2>🔑 Token de Autenticação</h2>
+        <div class="token-info">
+            <strong>Token atual:</strong> <span id="current-token">Nenhum - Faça login primeiro</span>
+        </div>
+        <button id="get-token-btn">Fazer Login Automático</button>
+        <div id="token-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>💾 Salvar Código</h2>
+        <div class="form-group">
+            <label>Título:</label>
+            <input type="text" id="code-title" value="Meu Código de Teste">
+        </div>
+        <div class="form-group">
+            <label>Código JavaScript:</label>
+            <textarea id="code-content">console.log("Hello World!");
+console.log("Código salvo via API!");</textarea>
+        </div>
+        <div class="form-group">
+            <label>Descrição:</label>
+            <input type="text" id="code-description" value="Código de teste criado via API">
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="code-public" checked> Código público
+            </label>
+        </div>
+        <button id="save-code-btn">Salvar Código</button>
+        <div id="save-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Meus Códigos</h2>
+        <button id="list-codes-btn">Listar Meus Códigos</button>
+        <div id="codes-list" class="codes-list result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>🌐 Códigos Públicos</h2>
+        <button id="public-codes-btn">Ver Códigos Públicos</button>
+        <div id="public-codes-list" class="codes-list result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let currentToken = localStorage.getItem('auth_token');
+        
+        function updateTokenDisplay() {
+            const tokenElement = document.getElementById('current-token');
+            if (currentToken) {
+                tokenElement.textContent = currentToken.substring(0, 50) + '...';
+                tokenElement.style.color = 'green';
+            } else {
+                tokenElement.textContent = 'Nenhum - Faça login primeiro';
+                tokenElement.style.color = 'red';
+            }
+        }
+
+        async function makeRequest(url, method = 'GET', data = null, useAuth = false) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (useAuth && currentToken) {
+                options.headers['Authorization'] = `Bearer ${currentToken}`;
+            }
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                return {
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                return {
+                    status: 500,
+                    data: { error: 'Erro de conexão: ' + error.message }
+                };
+            }
+        }
+
+        async function autoLogin() {
+            showResult('token-result', 'Fazendo login...', '');
+            
+            const result = await makeRequest(`${API_BASE}/auth/login`, 'POST', {
+                identifier: 'teste@email.com',
+                password: 'MinhaSenh@123'
+            });
+
+            if (result.data.success) {
+                currentToken = result.data.data.token;
+                localStorage.setItem('auth_token', currentToken);
+                updateTokenDisplay();
+                showResult('token-result', 'Login realizado com sucesso!\n' + JSON.stringify(result.data, null, 2), 'success');
+            } else {
+                showResult('token-result', 'Erro no login:\n' + JSON.stringify(result.data, null, 2), 'error');
+            }
+        }
+
+        async function saveCode() {
+            if (!currentToken) {
+                showResult('save-result', 'Faça login primeiro!', 'error');
+                return;
+            }
+
+            const title = document.getElementById('code-title').value;
+            const content = document.getElementById('code-content').value;
+            const description = document.getElementById('code-description').value;
+            const isPublic = document.getElementById('code-public').checked;
+
+            if (!title || !content) {
+                showResult('save-result', 'Título e código são obrigatórios!', 'error');
+                return;
+            }
+
+            showResult('save-result', 'Salvando código...', '');
+
+            const result = await makeRequest(`${API_BASE}/codes`, 'POST', {
+                title,
+                content,
+                description,
+                isPublic
+            }, true);
+
+            if (result.data.success) {
+                showResult('save-result', 'Código salvo com sucesso!\n' + JSON.stringify(result.data, null, 2), 'success');
+            } else {
+                showResult('save-result', 'Erro ao salvar:\n' + JSON.stringify(result.data, null, 2), 'error');
+            }
+        }
+
+        async function listMyCodes() {
+            if (!currentToken) {
+                showResult('codes-list', 'Faça login primeiro!', 'error');
+                return;
+            }
+
+            const result = await makeRequest(`${API_BASE}/codes`, 'GET', null, true);
+
+            if (result.data.success) {
+                const codes = result.data.data.codes;
+                let html = `<h3>Meus Códigos (${codes.length})</h3>`;
+                
+                codes.forEach(code => {
+                    html += `
+                        <div class="code-item">
+                            <div class="code-title">${code.title}</div>
+                            <div>${code.description}</div>
+                            <div class="code-stats">
+                                👁️ ${code.stats.views} visualizações | 
+                                ▶️ ${code.stats.runs} execuções | 
+                                🌐 ${code.isPublic ? 'Público' : 'Privado'}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                showResult('codes-list', html, 'success');
+            } else {
+                showResult('codes-list', 'Erro ao listar códigos:\n' + JSON.stringify(result.data, null, 2), 'error');
+            }
+        }
+
+        async function listPublicCodes() {
+            const result = await makeRequest(`${API_BASE}/codes/public/explore`);
+
+            if (result.data.success) {
+                const codes = result.data.data.codes;
+                let html = `<h3>Códigos Públicos (${codes.length})</h3>`;
+                
+                codes.forEach(code => {
+                    html += `
+                        <div class="code-item">
+                            <div class="code-title">${code.title}</div>
+                            <div>${code.description}</div>
+                            <div class="code-stats">
+                                👤 ${code.author.username} | 
+                                👁️ ${code.stats.views} visualizações | 
+                                ▶️ ${code.stats.runs} execuções
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (codes.length === 0) {
+                    html += '<p>Nenhum código público encontrado.</p>';
+                }
+
+                showResult('public-codes-list', html, 'success');
+            } else {
+                showResult('public-codes-list', 'Erro ao listar códigos públicos:\n' + JSON.stringify(result.data, null, 2), 'error');
+            }
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            if (type === 'success' || type === 'error') {
+                element.innerHTML = message;
+                element.className = `result ${type}`;
+            } else {
+                element.textContent = message;
+                element.className = 'result';
+            }
+            element.style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTokenDisplay();
+            
+            document.getElementById('get-token-btn').addEventListener('click', autoLogin);
+            document.getElementById('save-code-btn').addEventListener('click', saveCode);
+            document.getElementById('list-codes-btn').addEventListener('click', listMyCodes);
+            document.getElementById('public-codes-btn').addEventListener('click', listPublicCodes);
+        });
+    </script>
+</body>
+</html>
