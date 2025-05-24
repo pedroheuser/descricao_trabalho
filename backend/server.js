@@ -24,9 +24,7 @@ const app = express();
 })); */
 
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? 'https://seu-dominio.com' 
-        : 'http://localhost:8080', 
+    origin: ['http://localhost:3000', 'http://localhost:8080', 'http://127.0.0.1:3000', 'file://'],
     credentials: true
 }));
 
@@ -89,6 +87,12 @@ app.get('/test-codes', (req, res) => {
 });
 
 app.use('/api/codes', codeRoutes);
+
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
 
 app.use('*', (req, res) => {
     res.status(404).json({ 
