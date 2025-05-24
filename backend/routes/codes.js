@@ -3,9 +3,14 @@ const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const Code = require('../models/Code');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
+// ========================================
+// ROTAS DE TESTE E EXPLORAÇÃO
+// ========================================
+
+// 🧪 ROTA DE TESTE
 router.get('/test', (req, res) => {
     res.json({ 
         message: 'Sistema de códigos funcionando!',
@@ -13,6 +18,7 @@ router.get('/test', (req, res) => {
     });
 });
 
+// 🌍 EXPLORAR CÓDIGOS PÚBLICOS
 router.get('/public/explore', async (req, res) => {
     try {
         const { page = 1, limit = 20, search } = req.query;
@@ -58,6 +64,7 @@ router.get('/public/explore', async (req, res) => {
     }
 });
 
+// 🔗 ACESSAR CÓDIGO COMPARTILHADO
 router.get('/shared/:token', async (req, res) => {
     try {
         const code = await Code.findByShareToken(req.params.token);
@@ -105,6 +112,11 @@ router.get('/shared/:token', async (req, res) => {
     }
 });
 
+// ========================================
+// ROTAS PRINCIPAIS DE CRUD
+// ========================================
+
+// 📝 CRIAR CÓDIGO
 router.post('/', authenticateToken, [
     body('title')
         .isLength({ min: 1, max: 100 })
@@ -161,50 +173,232 @@ router.post('/', authenticateToken, [
     }
 });
 
+// 📋 LISTAR CÓDIGOS DO USUÁRIO
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const { page = 1, limit = 10, search } = req.query;
-        const skip = (page - 1) * limit;
-
+        const { page = 1, limit = 10, search = '', sortBy = 'updatedAt', order = 'desc' } = req.query;
+        
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Buscar apenas códigos do usuário autenticado
         let query = { author: req.user.id };
         
         if (search) {
             query.$or = [
                 { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { tags: { $in: [new RegExp(search, 'i')] } }
+                { description: { $regex: search, $options: 'i' } }
             ];
         }
 
+        const total = await Code.countDocuments(query);
+        
         const codes = await Code.find(query)
             .populate('author', 'username')
-            .sort({ updatedAt: -1 })
+            .sort({ [sortBy]: order === 'desc' ? -1 : 1 })
             .skip(skip)
-            .limit(parseInt(limit));
+            .limit(parseInt(limit))
+            .lean();
 
-        const total = await Code.countDocuments(query);
+        const totalPages = Math.ceil(total / parseInt(limit));
+        const currentPage = parseInt(page);
 
         res.json({
             success: true,
             data: {
                 codes,
                 pagination: {
-                    current: parseInt(page),
-                    total: Math.ceil(total / limit),
-                    count: codes.length,
-                    totalCodes: total
+                    current: currentPage,
+                    total: totalPages,
+                    totalCodes: total,
+                    hasNext: currentPage < totalPages,
+                    hasPrev: currentPage > 1
                 }
             }
         });
-
     } catch (error) {
         console.error('Erro ao listar códigos:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro interno do servidor'
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro interno do servidor' 
         });
     }
 });
+
+// 👁️ BUSCAR CÓDIGO ESPECÍFICO
+router.get('/:id', optionalAuth, async (req, res) => {
+    try {
+        const code = await Code.findById(req.params.id).populate('author', 'username');
+        
+        if (!code) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Código não encontrado' 
+            });
+        }
+
+        const currentUserId = req.user?.id;
+        const isAuthor = currentUserId && code.author._id.toString() === currentUserId.toString();
+        const canAccess = code.isPublic || isAuthor;
+        
+        if (!canAccess) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Acesso negado. Este código é privado e você não é o autor.' 
+            });
+        }
+
+        // Incrementar visualizações apenas se não for o próprio autor
+        if (!isAuthor) {
+            code.stats.views += 1;
+            await code.save();
+        }
+
+        res.json({ 
+            success: true, 
+            data: { code } 
+        });
+        
+    } catch (error) {
+        console.error('Erro ao buscar código:', error);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'ID do código inválido' 
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro interno do servidor' 
+        });
+    }
+});
+
+router.put('/:id', authenticateToken, [
+    body('title')
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Título deve ter entre 1 e 100 caracteres'),
+    body('content')
+        .isLength({ min: 1, max: 50000 })
+        .withMessage('Código deve ter entre 1 e 50.000 caracteres'),
+    body('description')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Descrição não pode ter mais de 500 caracteres')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados inválidos',
+                errors: errors.array()
+            });
+        }
+
+        const code = await Code.findById(req.params.id);
+        
+        if (!code) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Código não encontrado' 
+            });
+        }
+
+        if (code.author.toString() !== req.user.id.toString()) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Você não tem permissão para editar este código' 
+            });
+        }
+
+        const { title, content, description, tags, isPublic } = req.body;
+
+        if (code.content !== content) {
+            code.addVersion(code.content, 'Versão anterior');
+        }
+
+        code.title = title;
+        code.content = content;
+        code.description = description || '';
+        code.tags = tags || code.tags;
+        if (typeof isPublic === 'boolean') {
+            code.isPublic = isPublic;
+        }
+        code.updatedAt = new Date();
+
+        await code.save();
+
+        const updatedCode = await Code.findById(code._id).populate('author', 'username');
+
+        res.json({
+            success: true,
+            message: 'Código atualizado com sucesso!',
+            data: {
+                code: updatedCode
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao atualizar código:', error);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'ID do código inválido' 
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro interno do servidor' 
+        });
+    }
+});
+
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const code = await Code.findById(req.params.id);
+        
+        if (!code) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Código não encontrado' 
+            });
+        }
+
+        if (code.author.toString() !== req.user.id.toString()) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Você não tem permissão para excluir este código' 
+            });
+        }
+
+        await Code.findByIdAndDelete(req.params.id);
+
+        res.json({ 
+            success: true, 
+            message: 'Código excluído com sucesso' 
+        });
+        
+    } catch (error) {
+        console.error('Erro ao excluir código:', error);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'ID do código inválido' 
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro interno do servidor' 
+        });
+    }
+});
+
 
 router.post('/:id/run', optionalAuth, async (req, res) => {
     try {
@@ -257,6 +451,15 @@ router.post('/:id/share', authenticateToken, [
         .withMessage('expiresIn deve ser entre 1 e 365 dias')
 ], async (req, res) => {
     try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados inválidos',
+                errors: errors.array()
+            });
+        }
+
         const code = await Code.findById(req.params.id);
 
         if (!code) {
@@ -266,10 +469,10 @@ router.post('/:id/share', authenticateToken, [
             });
         }
 
-        if (code.author.toString() !== req.user.id) {
+        if (code.author.toString() !== req.user.id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Acesso negado'
+                message: 'Você não tem permissão para compartilhar este código'
             });
         }
 
@@ -304,52 +507,6 @@ router.post('/:id/share', authenticateToken, [
 
     } catch (error) {
         console.error('Erro ao compartilhar código:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro interno do servidor'
-        });
-    }
-});
-
-router.get('/:id', optionalAuth, async (req, res) => {
-    try {
-        const code = await Code.findById(req.params.id).populate('author', 'username');
-
-        if (!code) {
-            return res.status(404).json({
-                success: false,
-                message: 'Código não encontrado'
-            });
-        }
-
-        const isOwner = req.user && code.author._id.toString() === req.user.id;
-        const isPublic = code.isPublic;
-
-        if (!isOwner && !isPublic) {
-            return res.status(403).json({
-                success: false,
-                message: 'Acesso negado'
-            });
-        }
-
-        if (!isOwner) {
-            await code.incrementViews();
-        }
-
-        res.json({
-            success: true,
-            data: {
-                code,
-                permissions: {
-                    canEdit: isOwner,
-                    canDelete: isOwner,
-                    canShare: isOwner
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error('Erro ao buscar código:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor'

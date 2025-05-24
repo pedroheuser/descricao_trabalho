@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // ========================================
+    // ELEMENTOS DOM
+    // ========================================
     const codeEditor = document.getElementById('code-editor');
     const highlightLayer = document.querySelector('#highlight-layer code');
     const lineNumbers = document.getElementById('line-numbers');
@@ -23,6 +26,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerBtn = document.getElementById('register-btn');
     const profileBtn = document.getElementById('profile-btn');
     const logoutBtn = document.getElementById('logout-btn');
+
+    // ========================================
+    // VARIÁVEIS GLOBAIS
+    // ========================================
     let editorHistory = [];
     let historyIndex = -1;
     let isEditorDirty = false;
@@ -30,9 +37,14 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastSavedContent = '';
     let currentUser = null;
     let authToken = localStorage.getItem('auth_token');
+    let currentPage = 1;
+    let searchQuery = '';
     const hljs = window.hljs;
     const API_BASE = '/api';
 
+    // ========================================
+    // FUNÇÕES DE AUTENTICAÇÃO
+    // ========================================
     async function checkAuth() {
         if (!authToken) {
             showLoggedOutState();
@@ -89,6 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSaveStatus('unsaved');
     }
 
+    // ========================================
+    // FUNÇÕES DO EDITOR
+    // ========================================
     function updateHighlighting() {
         if (!highlightLayer || !codeEditor || !hljs) return;
         highlightLayer.textContent = codeEditor.value;
@@ -111,6 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalError = console.error;
         const originalWarn = console.warn;
         const originalInfo = console.info;
+        
         try {
             console.log = function() {
                 const args = Array.from(arguments);
@@ -127,29 +143,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 appendToOutput(message, 'log');
                 originalLog.apply(console, arguments);
             };
+            
             console.error = function() {
                 const args = Array.from(arguments);
                 const message = args.map(arg => String(arg)).join(' ');
                 appendToOutput(message, 'error');
                 originalError.apply(console, arguments);
             };
+            
             console.warn = function() {
                 const args = Array.from(arguments);
                 const message = args.map(arg => String(arg)).join(' ');
                 appendToOutput(message, 'warn');
                 originalWarn.apply(console, arguments);
             };
+            
             console.info = function() {
                 const args = Array.from(arguments);
                 const message = args.map(arg => String(arg)).join(' ');
                 appendToOutput(message, 'info');
                 originalInfo.apply(console, arguments);
             };
+            
             if (!codeEditor) return;
             const code = codeEditor.value;
+            
             if (currentCodeId) {
                 registerCodeRun(currentCodeId);
             }
+            
             const result = (function() {
                 try {
                     return eval(code);
@@ -157,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw error;
                 }
             })();
+            
             if (result !== undefined) {
                 let resultStr;
                 if (typeof result === 'object' && result !== null) {
@@ -208,6 +231,9 @@ document.addEventListener('DOMContentLoaded', function() {
         output.innerHTML = '';
     }
 
+    // ========================================
+    // FUNÇÕES DE HISTÓRICO
+    // ========================================
     function saveToHistory() {
         if (!codeEditor) return;
         if (historyIndex < editorHistory.length - 1) {
@@ -256,6 +282,9 @@ document.addEventListener('DOMContentLoaded', function() {
         redoBtn.style.opacity = redoBtn.disabled ? '0.5' : '1';
     }
 
+    // ========================================
+    // FUNÇÕES DE UTILIDADE
+    // ========================================
     function copyCode() {
         if (!codeEditor) return;
         codeEditor.select();
@@ -321,17 +350,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ========================================
+    // FUNÇÕES DE SALVAMENTO
+    // ========================================
     async function saveCode() {
         if (!currentUser) {
             showLoginModal();
             return;
         }
         if (!codeEditor || !codeTitle) return;
+        
         const title = codeTitle.value || 'Untitled.js';
         const content = codeEditor.value;
         updateSaveStatus('saving');
+        
         try {
             if (currentCodeId) {
+                // Atualizar código existente
                 const response = await fetch(`${API_BASE}/codes/${currentCodeId}`, {
                     method: 'PUT',
                     headers: {
@@ -355,6 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showNotification('Erro ao atualizar código: ' + data.message, 'error');
                 }
             } else {
+                // Criar novo código
                 const response = await fetch(`${API_BASE}/codes`, {
                     method: 'POST',
                     headers: {
@@ -387,6 +423,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ========================================
+    // FUNÇÕES DE COMPARTILHAMENTO
+    // ========================================
     async function showShareModal() {
         if (!currentUser) {
             showLoginModal();
@@ -429,6 +468,313 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ========================================
+    // FUNÇÕES DO PERFIL E GERENCIAMENTO
+    // ========================================
+    async function showProfileModal() {
+        if (!currentUser) {
+            showLoginModal();
+            return;
+        }
+        
+        const profileModal = document.getElementById('profile-codes-modal');
+        if (profileModal) {
+            profileModal.style.display = 'block';
+            await loadUserCodes();
+        }
+    }
+
+    async function loadUserCodes(page = 1, search = '') {
+        const loadingDiv = document.getElementById('codes-loading');
+        const codesListDiv = document.getElementById('codes-list');
+        const paginationDiv = document.getElementById('codes-pagination');
+        
+        if (loadingDiv) loadingDiv.classList.remove('hidden');
+        if (codesListDiv) codesListDiv.innerHTML = '';
+        if (paginationDiv) paginationDiv.classList.add('hidden');
+        
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: '10'
+            });
+            
+            if (search) {
+                params.append('search', search);
+            }
+            
+            const response = await fetch(`${API_BASE}/codes?${params}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                displayUserCodes(data.data.codes);
+                setupPagination(data.data.pagination);
+                currentPage = page;
+                searchQuery = search;
+            } else {
+                showError('Erro ao carregar códigos: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar códigos:', error);
+            showError('Erro ao carregar códigos');
+        } finally {
+            if (loadingDiv) loadingDiv.classList.add('hidden');
+        }
+    }
+
+    function displayUserCodes(codes) {
+        const codesListDiv = document.getElementById('codes-list');
+        if (!codesListDiv) return;
+        
+        if (codes.length === 0) {
+            codesListDiv.innerHTML = `
+                <div class="empty-state">
+                    <h3>Nenhum código encontrado</h3>
+                    <p>Comece criando seu primeiro código!</p>
+                    <button onclick="createNewCode()" class="btn btn-primary">+ Criar Código</button>
+                </div>
+            `;
+            return;
+        }
+        
+        const codesHTML = codes.map(code => {
+            const lastModified = new Date(code.updatedAt).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            return `
+                <div class="code-item" data-code-id="${code._id}">
+                    <div class="code-item-header">
+                        <div>
+                            <h3 class="code-item-title">${escapeHtml(code.title)}</h3>
+                            <p class="code-item-description">${escapeHtml(code.description || 'Sem descrição')}</p>
+                        </div>
+                        <div class="code-item-actions">
+                            <button onclick="loadCodeInEditor('${code._id}')" class="btn btn-small btn-primary">Abrir</button>
+                            <button onclick="shareCodeFromList('${code._id}')" class="btn btn-small">Compartilhar</button>
+                            <button onclick="confirmDeleteCode('${code._id}', '${escapeHtml(code.title)}')" class="btn btn-small">Excluir</button>
+                        </div>
+                    </div>
+                    <div class="code-item-meta">
+                        <div class="code-item-stats">
+                            <span>👁️ ${code.stats.views}</span>
+                            <span>▶️ ${code.stats.runs}</span>
+                            <span class="code-status ${code.isPublic ? 'public' : 'private'}">
+                                ${code.isPublic ? 'Público' : 'Privado'}
+                            </span>
+                        </div>
+                        <span>Modificado em ${lastModified}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        codesListDiv.innerHTML = codesHTML;
+    }
+
+    function setupPagination(pagination) {
+        const paginationDiv = document.getElementById('codes-pagination');
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+        
+        if (!paginationDiv || !prevBtn || !nextBtn || !pageInfo) return;
+        
+        if (pagination.total > 1) {
+            paginationDiv.classList.remove('hidden');
+            
+            prevBtn.disabled = pagination.current <= 1;
+            nextBtn.disabled = pagination.current >= pagination.total;
+            
+            pageInfo.textContent = `Página ${pagination.current} de ${pagination.total}`;
+            
+            prevBtn.onclick = () => {
+                if (pagination.current > 1) {
+                    loadUserCodes(pagination.current - 1, searchQuery);
+                }
+            };
+            
+            nextBtn.onclick = () => {
+                if (pagination.current < pagination.total) {
+                    loadUserCodes(pagination.current + 1, searchQuery);
+                }
+            };
+        } else {
+            paginationDiv.classList.add('hidden');
+        }
+    }
+
+    async function loadCodeInEditor(codeId) {
+        try {
+            const response = await fetch(`${API_BASE}/codes/${codeId}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const code = data.data.code;
+                
+                if (codeEditor) codeEditor.value = code.content;
+                if (codeTitle) codeTitle.value = code.title;
+                
+                currentCodeId = code._id;
+                lastSavedContent = code.content;
+                isEditorDirty = false;
+                
+                updateHighlighting();
+                updateLineNumbers();
+                updateSaveStatus('saved');
+                
+                const profileModal = document.getElementById('profile-codes-modal');
+                if (profileModal) profileModal.style.display = 'none';
+                
+                showNotification(`Código "${code.title}" carregado com sucesso!`);
+            } else {
+                showNotification('Erro ao carregar código: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar código:', error);
+            showNotification('Erro ao carregar código', 'error');
+        }
+    }
+
+    async function shareCodeFromList(codeId) {
+        try {
+            const response = await fetch(`${API_BASE}/codes/${codeId}/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    allowEditing: false,
+                    expiresIn: 30
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const shareModal = document.getElementById('share-modal');
+                const shareLink = document.getElementById('share-link');
+                const shareSuccess = document.getElementById('share-success');
+                
+                if (shareModal && shareLink && shareSuccess) {
+                    shareLink.value = data.data.shareUrl;
+                    shareSuccess.textContent = 'Link de compartilhamento gerado com sucesso!';
+                    shareModal.style.display = 'block';
+                }
+            } else {
+                showNotification('Erro ao gerar link: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao compartilhar código:', error);
+            showNotification('Erro ao compartilhar código', 'error');
+        }
+    }
+
+    function confirmDeleteCode(codeId, codeTitle) {
+        showConfirmModal(
+            'Excluir Código',
+            `Tem certeza que deseja excluir o código "${codeTitle}"?`,
+            () => deleteCode(codeId)
+        );
+    }
+
+    async function deleteCode(codeId) {
+        try {
+            const response = await fetch(`${API_BASE}/codes/${codeId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Código excluído com sucesso!');
+                
+                if (currentCodeId === codeId) {
+                    currentCodeId = null;
+                    lastSavedContent = '';
+                    updateSaveStatus('unsaved');
+                }
+                
+                await loadUserCodes(currentPage, searchQuery);
+            } else {
+                showNotification('Erro ao excluir código: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao excluir código:', error);
+            showNotification('Erro ao excluir código', 'error');
+        }
+    }
+
+    function createNewCode() {
+        if (codeEditor) codeEditor.value = '';
+        if (codeTitle) codeTitle.value = 'novo-codigo.js';
+        
+        currentCodeId = null;
+        lastSavedContent = '';
+        isEditorDirty = false;
+        
+        updateHighlighting();
+        updateLineNumbers();
+        updateSaveStatus('unsaved');
+        
+        const profileModal = document.getElementById('profile-codes-modal');
+        if (profileModal) profileModal.style.display = 'none';
+        
+        if (codeEditor) codeEditor.focus();
+        
+        showNotification('Novo código criado!');
+    }
+
+    // ========================================
+    // FUNÇÕES DE MODAL E NOTIFICAÇÃO
+    // ========================================
+    function showConfirmModal(title, message, onConfirm) {
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmTitle = document.getElementById('confirm-title');
+        const confirmMessage = document.getElementById('confirm-message');
+        const confirmYes = document.getElementById('confirm-yes');
+        const confirmNo = document.getElementById('confirm-no');
+        
+        if (confirmModal && confirmTitle && confirmMessage && confirmYes && confirmNo) {
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            
+            const newConfirmYes = confirmYes.cloneNode(true);
+            const newConfirmNo = confirmNo.cloneNode(true);
+            confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+            
+            newConfirmYes.addEventListener('click', () => {
+                confirmModal.style.display = 'none';
+                onConfirm();
+            });
+            
+            newConfirmNo.addEventListener('click', () => {
+                confirmModal.style.display = 'none';
+            });
+            
+            confirmModal.style.display = 'block';
+        }
+    }
+
     function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
         notification.className = 'copy-notification';
@@ -454,8 +800,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ========================================
+    // FUNÇÕES DE REDIMENSIONAMENTO
+    // ========================================
     let isResizing = false;
     let lastX, lastY;
+    
     if (resizer) {
         resizer.addEventListener('mousedown', function(e) {
             isResizing = true;
@@ -473,6 +823,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const outputContainer = document.querySelector('.output-container');
         const editorWorkspace = document.querySelector('.editor-workspace');
         if (!codeContainer || !outputContainer || !editorWorkspace) return;
+        
         if (window.innerWidth > 768) {
             const deltaX = e.clientX - lastX;
             const workspaceRect = editorWorkspace.getBoundingClientRect();
@@ -480,6 +831,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const newCodeWidth = codeRect.width + deltaX;
             const minWidth = 200;
             const maxWidth = workspaceRect.width - minWidth - 10;
+            
             if (newCodeWidth >= minWidth && newCodeWidth <= maxWidth) {
                 const newCodePercentage = (newCodeWidth / workspaceRect.width) * 100;
                 const newOutputPercentage = 100 - newCodePercentage - 1;
@@ -494,6 +846,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const newCodeHeight = codeRect.height + deltaY;
             const minHeight = 150;
             const maxHeight = workspaceRect.height - minHeight - 10;
+            
             if (newCodeHeight >= minHeight && newCodeHeight <= maxHeight) {
                 const newOutputHeight = workspaceRect.height - newCodeHeight - 10;
                 codeContainer.style.height = `${newCodeHeight}px`;
@@ -509,6 +862,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.removeEventListener('mouseup', stopResize);
     }
 
+    // ========================================
+    // CONFIGURAÇÃO DE MODAIS
+    // ========================================
     function setupModals() {
         const modals = document.querySelectorAll('.modal');
         modals.forEach(modal => {
@@ -535,6 +891,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
                 const errorDiv = document.getElementById('login-error');
+                
                 try {
                     const response = await fetch(`${API_BASE}/auth/login`, {
                         method: 'POST',
@@ -547,6 +904,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                     });
                     const data = await response.json();
+                    
                     if (data.success) {
                         authToken = data.data.token;
                         localStorage.setItem('auth_token', authToken);
@@ -565,6 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+        
         const registerForm = document.getElementById('register-form');
         if (registerForm) {
             registerForm.addEventListener('submit', async function(e) {
@@ -574,10 +933,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const password = document.getElementById('register-password').value;
                 const confirmPassword = document.getElementById('register-confirm-password').value;
                 const errorDiv = document.getElementById('register-error');
+                
                 if (password !== confirmPassword) {
                     if (errorDiv) errorDiv.textContent = 'As senhas não coincidem';
                     return;
                 }
+                
                 try {
                     const response = await fetch(`${API_BASE}/auth/register`, {
                         method: 'POST',
@@ -591,6 +952,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                     });
                     const data = await response.json();
+                    
                     if (data.success) {
                         authToken = data.data.token;
                         localStorage.setItem('auth_token', authToken);
@@ -613,18 +975,86 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function setupCodeSearch() {
+        const searchInput = document.getElementById('search-codes');
+        const searchBtn = document.getElementById('search-btn');
+        
+        if (searchInput && searchBtn) {
+            const performSearch = () => {
+                const query = searchInput.value.trim();
+                loadUserCodes(1, query);
+            };
+            
+            searchBtn.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        }
+    }
+
+    function setupShareModal() {
+        const copyLinkBtn = document.getElementById('copy-link-btn');
+        
+        if (copyLinkBtn) {
+            copyLinkBtn.addEventListener('click', () => {
+                const shareLink = document.getElementById('share-link');
+                if (shareLink) {
+                    shareLink.select();
+                    shareLink.setSelectionRange(0, 99999);
+                    
+                    try {
+                        document.execCommand('copy');
+                        showNotification('Link copiado para a área de transferência!');
+                    } catch (err) {
+                        console.error('Falha ao copiar link:', err);
+                        showNotification('Falha ao copiar link', 'error');
+                    }
+                }
+            });
+        }
+    }
+
+    // ========================================
+    // FUNÇÕES AUXILIARES
+    // ========================================
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    function showError(message) {
+        showNotification(message, 'error');
+    }
+
+    // Tornar funções globais para os botões onclick
+    window.loadCodeInEditor = loadCodeInEditor;
+    window.shareCodeFromList = shareCodeFromList;
+    window.confirmDeleteCode = confirmDeleteCode;
+    window.createNewCode = createNewCode;
+
+    // ========================================
+    // INICIALIZAÇÃO
+    // ========================================
     function init() {
         checkAuth();
+        
+        // Configurar editor
         if (codeEditor && lineNumbers && highlightLayer) {
             highlightLayer.style.background = "transparent";
             updateLineNumbers();
             updateHighlighting();
             saveToHistory();
+            
+            // Event listeners do editor
             codeEditor.addEventListener('input', function() {
                 updateHighlighting();
                 updateLineNumbers();
                 markEditorDirty();
             });
+            
             codeEditor.addEventListener('scroll', function() {
                 if (highlightLayer && highlightLayer.parentElement) {
                     highlightLayer.parentElement.scrollTop = codeEditor.scrollTop;
@@ -634,6 +1064,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     lineNumbers.scrollTop = codeEditor.scrollTop;
                 }
             });
+            
             codeEditor.addEventListener('keydown', function(e) {
                 if (e.key === 'Tab') {
                     e.preventDefault();
@@ -645,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateLineNumbers();
                     markEditorDirty();
                 }
+                
                 if (e.ctrlKey || e.metaKey) {
                     switch (e.key) {
                         case 'z':
@@ -665,16 +1097,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             break;
                     }
                 }
+                
                 if (e.key === 'F9') {
                     e.preventDefault();
                     runCode();
                 }
+                
                 if (e.key === 'F11') {
                     e.preventDefault();
                     toggleFullscreen();
                 }
             });
         }
+        
+        // Event listeners dos botões principais
         if (runBtn) runBtn.addEventListener('click', runCode);
         if (undoBtn) undoBtn.addEventListener('click', undo);
         if (redoBtn) redoBtn.addEventListener('click', redo);
@@ -685,6 +1121,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (saveBtn) saveBtn.addEventListener('click', saveCode);
         if (shareBtn) shareBtn.addEventListener('click', showShareModal);
         if (clearConsoleBtn) clearConsoleBtn.addEventListener('click', clearOutput);
+        
+        // Event listeners de autenticação
         if (loginBtn) loginBtn.addEventListener('click', () => {
             document.getElementById('login-modal').style.display = 'block';
         });
@@ -692,16 +1130,32 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('register-modal').style.display = 'block';
         });
         if (logoutBtn) logoutBtn.addEventListener('click', logout);
+        if (profileBtn) profileBtn.addEventListener('click', showProfileModal);
+        
+        // Event listener do título
         if (codeTitle) {
             codeTitle.addEventListener('change', function() {
                 markEditorDirty();
             });
         }
+
+        // Event listener do botão "Novo Código"
+        const newCodeBtn = document.getElementById('new-code-btn');
+        if (newCodeBtn) {
+            newCodeBtn.addEventListener('click', createNewCode);
+        }
+
+        // Configurar funcionalidades
         setupModals();
+        setupShareModal();
+        setupCodeSearch();
+        
+        // Focar no editor
         if (codeEditor) {
             codeEditor.focus();
         }
     }
 
+    // Inicializar aplicação
     init();
 });

@@ -165,6 +165,48 @@ console.log("Hello, world!");</textarea>
     </div>
 
     <!-- Modais -->
+    <div id="profile-codes-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto;">
+            <span class="close">&times;</span>
+            <h2>Meus Códigos</h2>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px;">
+                <div style="display: flex; gap: 10px; flex: 1; max-width: 400px;">
+                    <input type="text" id="search-codes" placeholder="Buscar códigos..." style="flex: 1; padding: 10px; border: 1px solid #3a3f4b; border-radius: 4px; background-color: #21252b; color: #abb2bf;">
+                    <button id="search-btn" class="btn">🔍</button>
+                </div>
+                <button id="new-code-btn" class="btn btn-primary">+ Novo Código</button>
+            </div>
+            
+            <div id="codes-loading" class="hidden" style="text-align: center; padding: 40px; color: #666;">
+                Carregando seus códigos...
+            </div>
+            
+            <div id="codes-list" style="max-height: 500px; overflow-y: auto;">
+                <!-- Códigos serão carregados aqui -->
+            </div>
+            
+            <div id="codes-pagination" class="hidden" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #3a3f4b;">
+                <button id="prev-page" class="btn">← Anterior</button>
+                <span id="page-info">Página 1</span>
+                <button id="next-page" class="btn">Próxima →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close">&times;</span>
+            <h3 id="confirm-title">Confirmar Ação</h3>
+            <p id="confirm-message" style="margin: 20px 0; color: #abb2bf;">Tem certeza que deseja realizar esta ação?</p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="confirm-yes" class="btn" style="background-color: #e06c75; border-color: #e06c75;">Sim</button>
+                <button id="confirm-no" class="btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
     <div id="login-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
