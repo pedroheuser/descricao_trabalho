@@ -1,0 +1,43 @@
+{
+  "name": "descricao_trabalho",
+  "version": "1.0.0",
+  "description": "Editor JavaScript Online - Projeto Web Development",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedroheuser/descricao_trabalho.git"
+  },
+  "keywords": [
+    "javascript",
+    "editor",
+    "web",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
+  "author": "Pedro Heuser & Luan Andrade",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pedroheuser/descricao_trabalho/issues"
+  },
+  "homepage": "https://github.com/pedroheuser/descricao_trabalho#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
