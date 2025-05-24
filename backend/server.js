@@ -8,6 +8,8 @@ require('dotenv').config();
 const User = require('./models/User');
 const Code = require('./models/Code');
 
+const authRoutes = require('./routes/auth');
+
 const app = express();
 
 app.use(helmet());
@@ -66,7 +68,7 @@ app.get('/api/test-models', async (req, res) => {
         });
     }
 });
-
+app.use('/api/auth', authRoutes);
 app.use('*', (req, res) => {
     res.status(404).json({ 
         error: 'Rota não encontrada' 
