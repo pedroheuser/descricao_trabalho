@@ -85,6 +85,9 @@ app.get('/test-auth', (req, res) => {
 app.get('/test-codes', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-codes.html'));
 });
+app.get('/shared/:token', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/shared.html'));
+});
 
 app.use('/api/codes', codeRoutes);
 
@@ -94,9 +97,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-app.get('/shared/:token', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/shared.html'));
-});
+
 
 
 app.use('*', (req, res) => {

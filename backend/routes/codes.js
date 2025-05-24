@@ -492,8 +492,8 @@ router.post('/:id/share', authenticateToken, [
 
         await code.save();
 
-        const shareUrl = `${req.protocol}://${req.get('host')}/api/codes/shared/${shareToken}`;
-
+        const shareUrl = `${req.protocol}://${req.get('host')}/shared/${shareToken}`;
+        console.log('🔗 Link gerado:', shareUrl); // Log para debug
         res.json({
             success: true,
             message: 'Link de compartilhamento gerado!',
