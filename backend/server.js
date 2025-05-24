@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const path = require('path');
 
 const User = require('./models/User');
 const Code = require('./models/Code');
@@ -12,7 +13,15 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
-app.use(helmet());
+/* app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "script-src": ["'self'", "'unsafe-inline'"],
+        },
+    },
+})); */
+
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
         ? 'https://seu-dominio.com' 
@@ -69,6 +78,11 @@ app.get('/api/test-models', async (req, res) => {
     }
 });
 app.use('/api/auth', authRoutes);
+
+app.get('/test-auth', (req, res) => {
+    res.sendFile(path.join(__dirname, 'test-auth.html'));
+});
+
 app.use('*', (req, res) => {
     res.status(404).json({ 
         error: 'Rota não encontrada' 
