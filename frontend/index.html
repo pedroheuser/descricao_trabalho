@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Online Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1>JS<span>Editor</span></h1>
+            </div>
+            <div class="user-section">
+                <div id="user-info" class="hidden">
+                    <span id="username-display"></span>
+                    <button id="profile-btn" class="btn">Profile</button>
+                    <button id="logout-btn" class="btn">Logout</button>
+                </div>
+                <div id="auth-buttons">
+                    <button id="login-btn" class="btn">Login</button>
+                    <button id="register-btn" class="btn">Register</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="editor-container">
+                <div class="editor-header">
+                    <div class="file-info">
+                        <input type="text" id="code-title" placeholder="Untitled.js" value="Untitled.js">
+                        <div class="save-status" id="save-status">Saved</div>
+                    </div>
+                    <div class="editor-actions">
+                        <button id="run-btn" class="action-btn" title="Run (F9)">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button id="undo-btn" class="action-btn" title="Undo (Ctrl+Z)">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button id="redo-btn" class="action-btn" title="Redo (Ctrl+Y)">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button id="clear-output-btn" class="action-btn" title="Clear Output">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button id="copy-btn" class="action-btn" title="Copy (Ctrl+C)">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button id="fullscreen-btn" class="action-btn" title="Fullscreen (F11)">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button id="select-all-btn" class="action-btn" title="Select All (Ctrl+A)">
+                            <i class="fas fa-mouse-pointer"></i>
+                        </button>
+                        <button id="share-btn" class="action-btn" title="Share Code">
+                            <i class="fas fa-share-alt"></i>
+                        </button>
+                        <button id="save-btn" class="action-btn" title="Save (Ctrl+S)">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        <a href="DOM.html" class="action-btn" title="Visualizar DOM">
+                            <i class="fas fa-sitemap"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="editor-workspace">
+                    <div class="code-container">
+                        <pre id="line-numbers"></pre>
+                        <textarea id="code-editor" spellcheck="false">// Write your JavaScript code here
+console.log("Hello, world!");</textarea>
+                        <pre id="highlight-layer"><code class="language-javascript hljs js"></code></pre>
+                    </div>
+                    <div class="resizer" id="resizer"></div>
+                    <div class="output-container">
+                        <div class="output-header">
+                            <h3>Output</h3>
+                            <button id="clear-console-btn" class="small-btn">Clear</button>
+                        </div>
+                        <div id="output" class="output"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Seção de informações sobre o projeto -->
+        <section id="project-info" style="display: none;">
+            <div class="container">
+                <main>
+                    <section id="integrantes">
+                        <h1>Integrantes do projeto</h1>
+                        <dl>
+                            <dt><h3>Luan Andrade</h3></dt>
+                            <dd class="descricaoIntegrantes">
+                                Luan de Brito Andrade é um profissional de Revenue Operations (RevOps), 
+                                com experiência em HubSpot, Python, Kotlin e backend. Atualmente, ele é 
+                                Revenue Operations Consultant na Inside, onde trabalha em projetos de 
+                                implementação de sistemas, automação e desenvolvimento de soluções tecnológicas 
+                                para otimizar a geração de receita. Estudante de Sistemas de Informação na 
+                                UFSC, Luan tem uma trajetória que inclui passagens por consultoria comercial e 
+                                administração de escritório. Apaixonado por resolver problemas e enfrentar 
+                                desafios, ele busca melhorar processos e resultados para as empresas, sempre 
+                                com foco em inovação e automação.
+                                <img src="assets/images/luanfoto.jpeg" alt="Foto de Luan Andrade" height="240">
+                            </dd>
+                            
+                            <dt><h3>Pedro Heuser</h3></dt>
+                            <dd class="descricaoIntegrantes">
+                                Pedro Heuser é um jovem profissional em ascensão na área de Tecnologia 
+                                da Informação, atualmente cursando Bacharelado em Sistemas de Informação na Universidade Federal de 
+                                Santa Catarina. Ele está trabalhando como Analytics Engineer Júnior na Indicium e é cofundador da 
+                                CyberSure, uma startup focada em treinamentos de cibersegurança, vencedora do StartupWeekend Floripa. 
+                                Sua experiência também inclui passagens como Engenheiro de Dados Júnior na Secretaria de Estado do Turismo 
+                                de Santa Catarina e estágios nas áreas de marketing e vendas.
+                                <img src="assets/images/pedrofoto.jpeg" alt="Foto de Pedro Heuser" height="240">
+                            </dd>
+                        </dl>
+                    </section>
+                    
+                    <section id="descricao">
+                        <h1>Descrição do projeto</h1>
+                        <p>
+                            Este projeto é um Editor JavaScript Online que permite escrever e executar código JavaScript diretamente no navegador.
+                            É uma ferramenta simples com interface amigável, desenvolvida como parte da disciplina de Desenvolvimento Web.
+                        </p>
+                    </section>
+                    
+                    <section id="objetivos">
+                        <h1>Objetivos</h1>
+                        <ul>
+                            <li class="obj">Criar interface para edição de código JavaScript</li>
+                            <li class="obj">Implementar funcionalidades básicas de execução</li>
+                            <li class="obj">Aplicar conhecimentos de desenvolvimento web</li>
+                        </ul>
+                    </section>
+                </main>
+                
+                <aside>
+                    <div class="info-box">
+                        <h2>Sobre o Curso</h2>
+                        <p>
+                            <a href="https://sin.ufsc.br/" target="_blank"> Sistemas de Informação - UFSC</a>
+                        </p>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h2>Repositório do projeto</h2>
+                        <p><a href="https://github.com/Cellmander/descricao_trabalho" target="_blank">GitHub</a></p>
+                    </div>
+                    <div class="info-box">
+                        <h2>Curso WebDevelopment</h2>
+                        <p>
+                            <a href="https://www.udemy.com/course/web-completo/" target="_blank">Curso Web Completo - Udemy</a>
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modais -->
+    <div id="profile-codes-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto;">
+            <span class="close">&times;</span>
+            <h2>Meus Códigos</h2>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px;">
+                <div style="display: flex; gap: 10px; flex: 1; max-width: 400px;">
+                    <input type="text" id="search-codes" placeholder="Buscar códigos..." style="flex: 1; padding: 10px; border: 1px solid #3a3f4b; border-radius: 4px; background-color: #21252b; color: #abb2bf;">
+                    <button id="search-btn" class="btn">🔍</button>
+                </div>
+                <button id="new-code-btn" class="btn btn-primary">+ Novo Código</button>
+            </div>
+            
+            <div id="codes-loading" class="hidden" style="text-align: center; padding: 40px; color: #666;">
+                Carregando seus códigos...
+            </div>
+            
+            <div id="codes-list" style="max-height: 500px; overflow-y: auto;">
+                <!-- Códigos serão carregados aqui -->
+            </div>
+            
+            <div id="codes-pagination" class="hidden" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #3a3f4b;">
+                <button id="prev-page" class="btn">← Anterior</button>
+                <span id="page-info">Página 1</span>
+                <button id="next-page" class="btn">Próxima →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close">&times;</span>
+            <h3 id="confirm-title">Confirmar Ação</h3>
+            <p id="confirm-message" style="margin: 20px 0; color: #abb2bf;">Tem certeza que deseja realizar esta ação?</p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="confirm-yes" class="btn" style="background-color: #e06c75; border-color: #e06c75;">Sim</button>
+                <button id="confirm-no" class="btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <div class="form-error" id="login-error"></div>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Register</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm-password">Confirm Password</label>
+                    <input type="password" id="register-confirm-password" required>
+                </div>
+                <div class="form-error" id="register-error"></div>
+                <button type="submit" class="btn btn-primary">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Profile</h2>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label for="profile-username">Username</label>
+                    <input type="text" id="profile-username" disabled>
+                </div>
+                <div class="form-group">
+                    <label for="profile-email">Email</label>
+                    <input type="email" id="profile-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="profile-current-password">Current Password</label>
+                    <input type="password" id="profile-current-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="profile-new-password">New Password (leave blank to keep current)</label>
+                    <input type="password" id="profile-new-password">
+                </div>
+                <div class="form-error" id="profile-error"></div>
+                <div class="form-success" id="profile-success"></div>
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Compartilhar Código</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="share-success" class="success-message" style="display: none;">
+                    Link de compartilhamento gerado com sucesso!
+                </div>
+                
+                <div class="form-group">
+                    <label for="share-link">Link de Compartilhamento:</label>
+                    <div class="share-link-container">
+                        <input 
+                            type="text" 
+                            id="share-link" 
+                            class="form-control" 
+                            readonly 
+                            placeholder="Link será gerado aqui..."
+                        >
+                        <button 
+                            type="button" 
+                            id="copy-link-btn" 
+                            class="btn btn-primary copy-btn"
+                            title="Copiar link"
+                        >
+                            📋 Copiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="share-info">
+                    <p><strong>ℹ️ Informações importantes:</strong></p>
+                    <ul>
+                        <li>Este link permite visualizar seu código</li>
+                        <li>O link expira em 30 dias</li>
+                        <li>Outras pessoas não poderão editar o código</li>
+                        <li>Você pode revogar o acesso a qualquer momento</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary close-modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="saved-codes-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>My Saved Codes</h2>
+            <div id="saved-codes-list" class="saved-codes-list">
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/editor.js"></script>
+</body>
+</html>
